@@ -1,0 +1,55 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: external-dns
+  namespace: external-dns
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: external-dns
+      version: '>=1.14.0'
+      sourceRef:
+        kind: HelmRepository
+        name: external-dns
+        namespace: flux-system
+      interval: 1m
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    provider: cloudflare
+    env:
+      - name: CF_API_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: cloudflare-api-token
+            key: api-token
+    extraArgs:
+      - --cloudflare-proxied=false
+      - --registry=txt
+      - --txt-owner-id=homelab
+      - --txt-prefix=ext-dns-
+      - --source=service
+      - --source=ingress
+      - --annotation-filter=external-dns.alpha.kubernetes.io/target-type in (external,both)
+    policy: sync
+    domainFilters:
+      - "ext.hm.hnnl.eu"
+    txtOwnerId: "homelab-external"
+    interval: "5m"
+    logLevel: debug
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: external-dns
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://kubernetes-sigs.github.io/external-dns/

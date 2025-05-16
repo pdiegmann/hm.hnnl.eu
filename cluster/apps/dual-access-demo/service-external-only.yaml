@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: access-external-only
+  namespace: dual-access-demo
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: external-only.ext.hm.hnnl.eu
+    external-dns.alpha.kubernetes.io/target-type: "external"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: access-demo

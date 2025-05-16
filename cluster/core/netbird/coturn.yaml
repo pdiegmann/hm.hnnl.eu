@@ -1,0 +1,38 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: netbird-coturn
+  namespace: netbird
+spec:
+  interval: 15m
+  chart:
+    spec:
+      chart: netbird-coturn
+      version: "0.10.x"
+      sourceRef:
+        kind: HelmRepository
+        name: netbird
+        namespace: flux-system
+  values:
+    image:
+      repository: coturn/coturn
+      tag: latest
+      pullPolicy: Always
+    
+    replicaCount: 2
+    
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 300m
+        memory: 256Mi
+    
+    service:
+      type: ClusterIP
+      port: 3478
+    
+    env:
+      TURN_PORT: "3478"
+      TURN_USERNAME: "netbird"

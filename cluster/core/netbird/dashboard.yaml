@@ -1,0 +1,44 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: netbird-dashboard
+  namespace: netbird
+spec:
+  interval: 15m
+  chart:
+    spec:
+      chart: netbird-dashboard
+      version: "0.10.x"
+      sourceRef:
+        kind: HelmRepository
+        name: netbird
+        namespace: flux-system
+  values:
+    image:
+      repository: netbirdio/dashboard
+      tag: latest
+      pullPolicy: Always
+    
+    replicaCount: 2
+    
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+    
+    service:
+      type: ClusterIP
+      port: 80
+    
+    ingress:
+      enabled: true
+      annotations:
+        kubernetes.io/ingress.class: "nginx"
+      hosts:
+        - host: netbird.homelab.local
+          paths:
+            - path: /
+              pathType: Prefix

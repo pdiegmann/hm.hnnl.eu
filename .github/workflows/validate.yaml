@@ -1,0 +1,40 @@
+name: Validate Kubernetes Manifests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Validate Kubernetes manifests
+        run: |
+          find ./cluster -type f -name "*.yaml" -not -path "*/flux-system/*" | xargs -I {} kubectl --dry-run=client validate -f {}
+
+      - name: Setup yamllint
+        run: pip install yamllint
+
+      - name: Lint YAML files
+        run: yamllint -c .yamllint.yaml ./cluster ./infrastructure
+
+  renovate-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Validate Renovate
+        uses: suzuki-shunsuke/github-action-renovate-config-validator@v0.1.3
+        with:
+          config_file_path: .github/renovate.json5

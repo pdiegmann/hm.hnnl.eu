@@ -1,0 +1,57 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: netbird-management
+  namespace: netbird
+spec:
+  interval: 15m
+  chart:
+    spec:
+      chart: netbird-management
+      version: "0.10.x"
+      sourceRef:
+        kind: HelmRepository
+        name: netbird
+        namespace: flux-system
+  values:
+    image:
+      repository: netbirdio/management
+      tag: latest
+      pullPolicy: Always
+    
+    replicaCount: 2
+    
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: "cubefs-storage"
+    
+    service:
+      type: ClusterIP
+      port: 443
+      grpcPort: 33073
+    
+    env:
+      AUTH_OIDC_ENABLED: "true"
+      AUTH_OIDC_ISSUER: "https://id.homelab.local"
+      AUTH_OIDC_CLIENT_ID: "${SECRET_OIDC_CLIENT_ID}"
+      AUTH_OIDC_CLIENT_SECRET: "${SECRET_OIDC_CLIENT_SECRET}"
+      AUTH_OIDC_SCOPE: "openid email profile offline_access"
+      AUTH_OIDC_CALLBACK_URL: "https://netbird.homelab.local/auth/oidc/callback"
+      
+      # DNS settings for NetBird clients
+      DNS_NAMESERVERS: "1.1.1.1"  # Fallback DNS
+      DNS_DOMAINS: "ext.hm.hnnl.eu"  # External domain for remote access
+    
+  valuesFrom:
+    - kind: Secret
+      name: netbird-management-secrets
+      valuesKey: values.yaml

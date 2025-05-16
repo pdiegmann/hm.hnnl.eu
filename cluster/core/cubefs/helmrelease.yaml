@@ -1,0 +1,81 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: cubefs
+  namespace: cubefs
+spec:
+  interval: 15m
+  chart:
+    spec:
+      chart: cubefs
+      version: "3.2.0" # Change to the version you want to use
+      sourceRef:
+        kind: HelmRepository
+        name: cubefs
+        namespace: flux-system
+  values:
+    # Master configuration
+    master:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      persistentVolume:
+        enabled: true
+        size: 5Gi
+
+    # Metanode configuration
+    metanode:
+      replicas: 3
+      resources:
+        requests:
+          cpu: 200m
+          memory: 512Mi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      persistentVolume:
+        enabled: true
+        size: 20Gi
+
+    # Datanode configuration
+    datanode:
+      replicas: 3
+      resources:
+        requests:
+          cpu: 200m
+          memory: 512Mi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+      persistentVolume:
+        enabled: true
+        size: 50Gi
+
+    # CSI driver configuration
+    csi:
+      enabled: true
+      provisioner:
+        replicas: 1
+      attacher:
+        replicas: 1
+      nodeplugin:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+
+    # Set up a default storage class
+    storageClass:
+      enabled: true
+      name: cubefs-storage
+      isDefault: true
+      reclaimPolicy: Delete
+      volumeExpansion: true

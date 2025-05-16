@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bind9-config
+  namespace: dns
+data:
+  named.conf: |
+    options {
+      directory "/var/cache/bind";
+      listen-on { any; };
+      listen-on-v6 { any; };
+      allow-query { any; };
+      allow-recursion { any; };
+      allow-transfer { none; };
+      recursion yes;
+      
+      // Use Cloudflare DNS as forwarders
+      forwarders {
+        1.1.1.1;
+        1.0.0.1;
+      };
+      
+      dnssec-validation auto;
+    };
+
+    // Local zone for homelab
+    zone "local.hm.hnnl.eu" {
+      type master;
+      file "/etc/bind/db.local.hm.hnnl.eu";
+      allow-update { none; };
+    };
+
+    // External zone for homelab
+    zone "ext.hm.hnnl.eu" {
+      type forward;
+      forwarders { 1.1.1.1; 1.0.0.1; };
+    };
+
+  db.local.hm.hnnl.eu: |
+    $TTL 86400
+    @ IN SOA ns.local.hm.hnnl.eu. admin.local.hm.hnnl.eu. (
+      1        ; Serial
+      3600     ; Refresh
+      1800     ; Retry
+      604800   ; Expire
+      86400    ; Minimum TTL
+    )
+    
+    @             IN NS   ns.local.hm.hnnl.eu.
+    ns            IN A    ${NODE_IP}  ; Will be replaced by script
+    
+    ; Kubernetes Services will be added dynamically by external-dns

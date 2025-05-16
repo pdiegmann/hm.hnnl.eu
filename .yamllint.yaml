@@ -1,0 +1,20 @@
+---
+extends: default
+
+rules:
+  line-length: disable
+  comments-indentation: disable
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    check-keys: false
+  braces:
+    max-spaces-inside: 1
+  indentation:
+    spaces: 2
+
+ignore: |
+  .github/
+  .direnv/
+  .task/
+  *.sops.yaml
+  flux-*-components.yaml

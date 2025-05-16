@@ -1,0 +1,17 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hm-hnnl-eu-tls
+  namespace: cert-manager
+spec:
+  secretName: hm-hnnl-eu-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: "hm.hnnl.eu"
+  dnsNames:
+    - "hm.hnnl.eu"
+    - "*.hm.hnnl.eu"
+  duration: 2160h # 90 days
+  renewBefore: 360h # 15 days

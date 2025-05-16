@@ -1,0 +1,39 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: kubevirt
+  namespace: kubevirt
+spec:
+  interval: 15m
+  chart:
+    spec:
+      chart: kubevirt
+      version: "1.0.0" # Change to the version you want to use
+      sourceRef:
+        kind: HelmRepository
+        name: kubevirt
+        namespace: flux-system
+  values:
+    operator:
+      resource:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    
+    # Configure KubeVirt CR
+    kubevirt:
+      spec:
+        configuration:
+          developerConfiguration:
+            featureGates:
+              - LiveMigration
+          imagePullPolicy: IfNotPresent
+          cpuModel: host-model
+          memBalloonStatsPeriod: 10
+          
+    # CDI for VM disk management
+    cdi:
+      enabled: true

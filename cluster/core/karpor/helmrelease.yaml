@@ -1,0 +1,84 @@
+# Karpor Helm Release for Kubernetes Visualization and Intelligence
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: karpor
+  namespace: karpor
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: karpor
+      version: '>=0.7.0'
+      sourceRef:
+        kind: HelmRepository
+        name: kusionstack
+        namespace: flux-system
+      interval: 1m
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    # General Settings
+    server:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+      # Uncomment and configure to enable AI features
+      # ai:
+      #   authToken: "${KARPOR_AI_TOKEN}"
+      #   baseUrl: "https://api.openai.com/v1"
+      #   model: "gpt-3.5-turbo"
+    
+    syncer:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+    
+    # Storage Components
+    elasticsearch:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 1
+          memory: 2Gi
+        limits:
+          cpu: 1
+          memory: 2Gi
+    
+    etcd:
+      replicas: 1
+      persistence:
+        size: 5Gi
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: 300m
+          memory: 512Mi
+---
+# Helm Repository Definition
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: kusionstack
+  namespace: flux-system
+spec:
+  interval: 30m
+  url: https://kusionstack.github.io/charts

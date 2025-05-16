@@ -1,0 +1,8 @@
+# Redirect old documentation URLs to the new MkDocs structure
+RedirectMatch 301 ^/docs/getting-started.md$ /guide/getting-started/
+RedirectMatch 301 ^/docs/troubleshooting.md$ /guide/troubleshooting/
+RedirectMatch 301 ^/docs/zitadel.md$ /components/zitadel/
+RedirectMatch 301 ^/docs/netbird.md$ /components/netbird/
+RedirectMatch 301 ^/docs/integration.md$ /components/integration/
+RedirectMatch 301 ^/docs/overview.md$ /components/overview/
+RedirectMatch 301 ^/docs/sops.md$ /guide/secrets-management/

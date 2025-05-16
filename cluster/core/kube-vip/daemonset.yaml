@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-vip
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: kube-vip
+  template:
+    metadata:
+      labels:
+        name: kube-vip
+    spec:
+      containers:
+        - args:
+            - manager
+          env:
+            - name: vip_interface
+              valueFrom:
+                configMapKeyRef:
+                  key: vip_interface
+                  name: kube-vip-config
+            - name: vip_address
+              valueFrom:
+                configMapKeyRef:
+                  key: vip_address
+                  name: kube-vip-config
+            - name: vip_leaderelection
+              valueFrom:
+                configMapKeyRef:
+                  key: vip_leaderelection
+                  name: kube-vip-config
+            - name: enable_loadbalancer
+              valueFrom:
+                configMapKeyRef:
+                  key: enable_loadbalancer
+                  name: kube-vip-config
+            - name: port
+              valueFrom:
+                configMapKeyRef:
+                  key: port
+                  name: kube-vip-config
+            - name: prometheus
+              valueFrom:
+                configMapKeyRef:
+                  key: prometheus
+                  name: kube-vip-config
+            - name: annotations
+              valueFrom:
+                configMapKeyRef:
+                  key: annotations
+                  name: kube-vip-config
+            - name: enableServicesElection
+              valueFrom:
+                configMapKeyRef:
+                  key: enableServicesElection
+                  name: kube-vip-config
+            - name: vipSubnet
+              valueFrom:
+                configMapKeyRef:
+                  key: vipSubnet
+                  name: kube-vip-config
+          image: ghcr.io/kube-vip/kube-vip:v0.6.2
+          imagePullPolicy: Always
+          name: kube-vip
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+                - NET_RAW
+                - SYS_TIME
+      hostNetwork: true
+      serviceAccountName: kube-vip
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
+      nodeSelector:
+        node.kubernetes.io/controller: "true"

@@ -1,0 +1,38 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: netbird-operator
+  namespace: netbird
+spec:
+  interval: 15m
+  chart:
+    spec:
+      chart: netbird-operator
+      version: "0.10.x"
+      sourceRef:
+        kind: HelmRepository
+        name: netbird
+        namespace: flux-system
+  values:
+    image:
+      repository: netbirdio/netbird-operator
+      tag: latest
+      pullPolicy: Always
+    
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+        
+    managementUrl: "https://netbird-management:443"
+    
+    serviceAccount:
+      create: true
+      annotations: {}
+      name: "netbird-operator"
+    
+    rbac:
+      create: true

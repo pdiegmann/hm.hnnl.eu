@@ -1,0 +1,53 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base",
+    "docker:enableMajor",
+    ":disableRateLimiting",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":automergeDigest",
+    ":automergeBranch",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "platform": "github",
+  "onboarding": false,
+  "requireConfig": false,
+  "dependencyDashboardTitle": "Renovate Dashboard 🤖",
+  "commitBody": "Signed-off-by: Renovate Bot <bot@renovateapp.com>",
+  "suppressNotifications": ["prIgnoreNotification"],
+  "kubernetes": {
+    "fileMatch": [
+      "^cluster/.+/.*\\.yaml$",
+      "^infrastructure/.+/.*\\.yaml$"
+    ]
+  },
+  "helm-values": {
+    "fileMatch": [
+      "^cluster/.+/.*\\.yaml$"
+    ]
+  },
+  "flux": {
+    "fileMatch": [
+      "^cluster/flux/.*\\.yaml$"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Auto merge container digests",
+      "matchDatasources": ["docker"],
+      "automerge": true,
+      "automergeType": "branch",
+      "ignoreTests": true,
+      "matchUpdateTypes": ["digest"],
+      "matchPackagePatterns": ["ghcr.io/fluxcd", "docker.io/library"]
+    },
+    {
+      "description": "Auto merge github actions",
+      "matchManagers": ["github-actions"],
+      "automerge": true,
+      "automergeType": "branch",
+      "matchUpdateTypes": ["minor", "patch"]
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+site_name: Homelab Kubernetes Cluster
+site_description: Documentation for the Homelab Kubernetes Cluster
+site_author: Phil Hennel
+site_url: https://USERNAME.github.io/homelab/  # Update with your actual GitHub username
+
+# Repository
+repo_name: homelab
+repo_url: https://github.com/USERNAME/homelab  # Update with your actual GitHub username/repo
+edit_uri: edit/main/docs-src/docs/
+
+# Copyright
+copyright: Copyright &copy; 2023 - 2025
+
+# Configuration
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.highlight
+    - search.share
+    - search.suggest
+    - content.code.copy
+    - content.tabs.link
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  favicon: img/favicon.ico
+  logo: img/logo.png
+
+# Customization
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/USERNAME  # Update with your actual GitHub username
+  generator: false
+
+# Extra files to include in the build
+extra_files:
+  - assets/.htaccess
+
+# Extensions
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - meta
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      repo_url_shorthand: true
+      user: USERNAME  # Update with your actual GitHub username
+      repo: homelab
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# Plugins
+plugins:
+  - search:
+      lang: en
+  - minify:
+      minify_html: true
+
+# Page tree
+nav:
+  - Home: index.md
+  - Getting Started:
+    - guide/getting-started.md
+    - Installation: guide/installation.md
+    - Configuration: guide/configuration.md
+    - VM Setup: guide/vm-setup.md
+    - Secrets Management: guide/secrets-management.md
+    - Troubleshooting: guide/troubleshooting.md
+  - Components:
+    - Overview: components/overview.md
+    - Talos OS: components/talos.md
+    - Kubernetes: components/kubernetes.md
+    - Zitadel: components/zitadel.md
+    - NetBird: components/netbird.md
+    - CubeFS: components/cubefs.md
+    - Kube-vip: components/kube-vip.md
+    - Karpor: components/karpor.md
+    - Certificate Management: components/cert-manager.md
+    - DNS Management: components/external-dns.md
+  - Integration Guide:
+    - Authentication & Security: components/integration.md
+  - Reference:
+    - Hardware: reference/hardware.md
+    - Network: reference/network.md
+    - Secrets: reference/secrets.md

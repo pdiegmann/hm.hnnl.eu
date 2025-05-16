@@ -1,0 +1,44 @@
+# SOPS keys
+.sops/age.agekey
+
+# Talos secrets and configs
+*.secret.yaml
+kubeconfig
+talosconfig
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Ansible
+*.retry
+
+# Flux
+.fleet/
+
+# Cluster specific
+cluster/flux/flux-system/gotk-components.yaml
+cluster/flux/flux-system/gotk-sync.yaml
+
+# Sensitive information
+*.pem
+*.key
+*.crt
+*.env

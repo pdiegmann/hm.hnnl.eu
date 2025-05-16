@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cubefs
+  labels:
+    app.kubernetes.io/instance: cubefs
+    app.kubernetes.io/name: cubefs

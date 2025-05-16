@@ -1,0 +1,44 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: zitadel
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://charts.zitadel.com
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: netbird
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://charts.netbird.io
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: kube-vip
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://kube-vip.github.io/helm-charts
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: cubefs
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://cubefs.github.io/cubefs-helm
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: bitnami
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://charts.bitnami.com/bitnami

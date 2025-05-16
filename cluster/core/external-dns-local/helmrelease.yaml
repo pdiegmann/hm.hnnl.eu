@@ -1,0 +1,47 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: external-dns-local
+  namespace: external-dns
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: external-dns
+      version: '>=1.14.0'
+      sourceRef:
+        kind: HelmRepository
+        name: external-dns
+        namespace: flux-system
+      interval: 1m
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    nameOverride: external-dns-local
+    provider: rfc2136
+    rfc2136:
+      host: "${BIND9_IP}"  # Will be replaced by Flux or script
+      port: 53
+      zone: "local.hm.hnnl.eu"
+      tsigKeyname: "externaldns-key"
+      tsigSecret: "${BIND9_TSIG_KEY}"  # Will be replaced by Flux using SOPS
+      tsigSecretAlg: "hmac-sha256"
+    extraArgs:
+      - --registry=txt
+      - --txt-owner-id=homelab-local
+      - --txt-prefix=int-dns-
+      - --source=service
+      - --source=ingress
+      - --annotation-filter=external-dns.alpha.kubernetes.io/target-type in (internal,both)
+    policy: sync
+    domainFilters:
+      - "local.hm.hnnl.eu"
+    txtOwnerId: "homelab-local"
+    interval: "5m"
+    logLevel: debug

@@ -1,0 +1,56 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: bind9
+  namespace: dns
+spec:
+  interval: 15m
+  chart:
+    spec:
+      chart: bind
+      version: 2.x.x
+      sourceRef:
+        kind: HelmRepository
+        name: k8s-at-home
+        namespace: flux-system
+      interval: 15m
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    image:
+      repository: docker.io/internetsystemsconsortium/bind9
+      tag: 9.18
+    env:
+      TZ: "Europe/Berlin"
+    service:
+      main:
+        type: LoadBalancer
+        loadBalancerIP: "${BIND9_IP}"  # Will be replaced by Flux
+        ports:
+          dns:
+            port: 53
+            protocol: UDP
+          dns-tcp:
+            port: 53
+            protocol: TCP
+    persistence:
+      config:
+        enabled: true
+        type: configMap
+        name: bind9-config
+        mountPath: /etc/bind
+      cache:
+        enabled: true
+        type: emptyDir
+        medium: Memory
+    resources:
+      requests:
+        memory: 128Mi
+        cpu: 100m
+      limits:
+        memory: 256Mi

@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: access-demo
+  namespace: dual-access-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: access-demo
+  template:
+    metadata:
+      labels:
+        app: access-demo
+    spec:
+      containers:
+      - name: nginx
+        image: nginxdemos/hello:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"

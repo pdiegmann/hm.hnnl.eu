@@ -1,0 +1,11 @@
+# MkDocs build directory
+site/
+
+# Python virtual environment
+venv/
+.venv/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class

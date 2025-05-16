@@ -1,0 +1,11 @@
+creation_rules:
+  # Encrypt with AGE
+  - path_regex: .*.ya?ml
+    encrypted_regex: ^(data|stringData)$
+    age: >-
+      age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Note: Replace the AGE public key above with your actual key
+# You can generate an AGE keypair using the age-keygen command:
+# age-keygen -o age.agekey
+# The public key will be displayed in the output, which you should use above
