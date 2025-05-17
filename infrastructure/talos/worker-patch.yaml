@@ -1,0 +1,5 @@
+machine:
+  type: worker
+  kubelet:
+    extraArgs:
+      node-labels: "role=worker"

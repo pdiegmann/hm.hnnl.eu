@@ -552,21 +552,53 @@ class ClusterManager:
         console.print("Please provide the following details for your new cluster:")
         
         questions = [
-            questionary.text("Cluster name:", default=default_name, qmark="ℹ️"),
-            questionary.text("Network prefix (e.g., 192.168.1):", default=default_network_prefix, validate=lambda text: len(text.split('.')) == 3 or "Must be three octets (e.g., 192.168.1)", qmark="ℹ️"),
-            questionary.text("Control plane VIP:", default=default_control_plane_vip, validate=validate_ip_address, qmark="ℹ️"),
-            questionary.text("Talos version (e.g., v1.7.0):", default=default_talos_version, qmark="ℹ️"),
-            questionary.text("Kubernetes version (e.g., v1.29.0):", default=default_k8s_version, qmark="ℹ️"),
+            {
+                'type': 'text',
+                'name': 'cluster_name',
+                'message': 'Cluster name:',
+                'default': default_name,
+                'qmark': "ℹ️"
+            },
+            {
+                'type': 'text',
+                'name': 'network_prefix',
+                'message': 'Network prefix (e.g., 192.168.1):',
+                'default': default_network_prefix,
+                'validate': lambda text: len(text.split('.')) == 3 or "Must be three octets (e.g., 192.168.1)",
+                'qmark': "ℹ️"
+            },
+            {
+                'type': 'text',
+                'name': 'control_plane_vip',
+                'message': 'Control plane VIP:',
+                'default': default_control_plane_vip,
+                'validate': validate_ip_address,
+                'qmark': "ℹ️"
+            },
+            {
+                'type': 'text',
+                'name': 'talos_version',
+                'message': 'Talos version (e.g., v1.7.0):',
+                'default': default_talos_version,
+                'qmark': "ℹ️"
+            },
+            {
+                'type': 'text',
+                'name': 'kubernetes_version',
+                'message': 'Kubernetes version (e.g., v1.29.0):',
+                'default': default_k8s_version,
+                'qmark': "ℹ️"
+            },
         ]
         
         answers = questionary.unsafe_prompt(questions)
         if not answers: return {} # User cancelled
 
-        cluster_name = answers[0]
-        network_prefix = answers[1]
-        control_plane_vip = answers[2]
-        talos_version = answers[3]
-        kubernetes_version = answers[4]
+        cluster_name = answers["cluster_name"]
+        network_prefix = answers["network_prefix"]
+        control_plane_vip = answers["control_plane_vip"]
+        talos_version = answers["talos_version"]
+        kubernetes_version = answers["kubernetes_version"]
 
         console.print("\nDefine your control plane nodes (at least 3 recommended for HA):")
         nodes = []
@@ -624,22 +656,41 @@ class ClusterManager:
         ) as progress:
             task = progress.add_task("Generating Talos configurations...", total=None)
             
-            # Run the gen-config.sh script
-            script_path = os.path.join(self.repo_path, "bootstrap", "talos", "gen-config.sh")
+            # Determine the correct project root.
+            # Assumes this file (cluster.py) is located at <project_root>/cli/hm_cli/cluster.py
+            try:
+                current_file_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.abspath(os.path.join(current_file_dir, "..", ".."))
+            except NameError:
+                logger.warning("__file__ not defined when trying to determine project root for Talos scripts. Falling back to self.repo_path.")
+                project_root = self.repo_path # Fallback to original behavior if __file__ is not available
+
+            logger.info(f"Using project root for Talos gen-config.sh: {project_root}. (Original self.repo_path: {self.repo_path})")
+
+            # Define path to the gen-config.sh script and its working directory
+            script_dir_relative_to_root = os.path.join("bootstrap", "talos")
+            script_name = "gen-config.sh"
+            
+            script_path = os.path.join(project_root, script_dir_relative_to_root, script_name)
+            script_execution_cwd = os.path.join(project_root, script_dir_relative_to_root)
             
             if not os.path.exists(script_path):
                 progress.stop()
-                console.print(f"[bold red]Error: gen-config.sh script not found at {script_path}[/bold red]")
+                console.print(f"[bold red]Error: gen-config.sh script not found at corrected path: {script_path}[/bold red]")
                 return False
             
             # Make script executable
-            os.chmod(script_path, 0o755)
+            try:
+                os.chmod(script_path, 0o755)
+            except OSError as e:
+                progress.stop()
+                console.print(f"[bold red]Error setting execute permission for {script_path}: {e}[/bold red]")
+                return False
             
             # Run the script
             env_vars = os.environ.copy()
             env_vars['TALOS_VERSION'] = cluster_info.get('talos_version', 'v1.7.0') # Default if somehow not set
             env_vars['KUBERNETES_VERSION'] = cluster_info.get('kubernetes_version', 'v1.29.0') # Default
-            # Pass other necessary env vars if gen-config.sh needs them, e.g. CLUSTER_NAME, VIP
             env_vars['CLUSTER_NAME'] = cluster_info.get('name')
             env_vars['CONTROL_PLANE_VIP'] = cluster_info.get('control_plane_vip')
             # The gen-config.sh script will need to be aware of these IPs.
@@ -649,11 +700,11 @@ class ClusterManager:
             # Example: env_vars['CP1_IP'] = cluster_info['nodes'][0]['ip'] etc.
             # This depends on gen-config.sh implementation.
 
-            console.print(f"[dim]Running {script_path} with TALOS_VERSION={env_vars['TALOS_VERSION']}, KUBERNETES_VERSION={env_vars['KUBERNETES_VERSION']}[/dim]")
+            console.print(f"[dim]Running {script_path} in '{script_execution_cwd}' with TALOS_VERSION={env_vars['TALOS_VERSION']}, KUBERNETES_VERSION={env_vars['KUBERNETES_VERSION']}[/dim]")
 
             returncode, stdout, stderr = run_command(
-                script_path,
-                cwd=os.path.join(self.repo_path, "bootstrap", "talos"),
+                script_path, # script_path is now correctly determined
+                cwd=script_execution_cwd, # Use the corrected CWD
                 env=env_vars
             )
             
@@ -683,6 +734,17 @@ class ClusterManager:
         Returns:
             True if successful, False otherwise.
         """
+        # Determine the correct project root, similar to _generate_talos_configs
+        try:
+            current_file_dir = os.path.dirname(os.path.abspath(__file__))
+            # Assuming this file is at <project_root>/cli/hm_cli/cluster.py
+            project_root = os.path.abspath(os.path.join(current_file_dir, "..", ".."))
+        except NameError: # pragma: no cover
+            logger.warning("__file__ not defined when trying to determine project root for applying Talos configs. Falling back to self.repo_path.")
+            project_root = self.repo_path # Fallback
+
+        logger.info(f"Using project root for applying Talos configs: {project_root}. (Original self.repo_path: {self.repo_path})")
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -693,26 +755,44 @@ class ClusterManager:
             for node in cluster_info['nodes']:
                 progress.update(task, description=f"Applying configuration to {node['name']} ({node['ip']})...")
                 
-                # Get the configuration file path
-                config_file = os.path.join(
-                    self.repo_path,
+                # Get the configuration file path using the determined project_root
+                config_file_relative_path = os.path.join(
                     "infrastructure",
                     "talos",
                     "controlplane",
                     f"{node['name']}.yaml"
                 )
+                config_file = os.path.join(project_root, config_file_relative_path)
                 
+                logger.debug(f"Attempting to apply Talos config from: {config_file}")
+
                 if not os.path.exists(config_file):
                     progress.stop()
                     console.print(f"[bold red]Error: Configuration file not found at {config_file}[/bold red]")
+                    # Log details about paths for debugging
+                    console.print(f"[dim]Project root used: {project_root}[/dim]")
+                    console.print(f"[dim]self.repo_path was: {self.repo_path}[/dim]")
+                    console.print(f"[dim]Original path attempted (using self.repo_path): {os.path.join(self.repo_path, config_file_relative_path)}[/dim]")
                     return False
                 
                 # Apply the configuration
+                # The cwd for talosctl should ideally be where talosctl can resolve any relative paths within the config file itself,
+                # or if the config file uses absolute paths.
+                # Using project_root as cwd seems safest if config files might have relative paths based on project root.
+                # If talosctl apply-config --file expects the file path to be absolute or relative to its CWD,
+                # and we provide an absolute path for config_file, CWD might be less critical for --file.
+                # However, consistency with _generate_talos_configs (which uses script_execution_cwd) is good.
+                # Let's use project_root as CWD.
                 returncode, stdout, stderr = run_command(
-                    f"talosctl apply-config --insecure --nodes {node['ip']} --file {config_file}",
-                    cwd=self.repo_path
+                    f"talosctl apply-config --insecure --nodes {node['ip']} --file \"{config_file}\"", # Quote config_file for safety
+                    cwd=project_root # Use determined project_root as CWD
                 )
                 
+                if stdout: # Log stdout for apply-config
+                    console.print(f"[dim]talosctl apply-config stdout for {node['name']}:\n{stdout}[/dim]")
+                if stderr and returncode != 0: # Log stderr only on error
+                     console.print(f"[yellow]talosctl apply-config stderr for {node['name']}:\n{stderr}[/yellow]")
+
                 if returncode != 0:
                     progress.stop()
                     console.print(f"[bold red]Error applying configuration to {node['name']}: {stderr}[/bold red]")

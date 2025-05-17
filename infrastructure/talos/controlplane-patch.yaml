@@ -1,0 +1,101 @@
+machine:
+  certSANs:
+    - 192.168.1.100
+    - 192.168.1.101
+    - 127.0.0.1
+  kubelet:
+    extraArgs:
+      node-labels: "node.kubernetes.io/controller=true"
+  # Configure kube-vip in controlplane nodes
+  install:
+    extraKernelArgs:
+      - ip_forward=1
+      - "net.ipv4.conf.all.arp_announce=2"
+      - "net.ipv4.conf.all.arp_ignore=1"
+  files:
+    - content: |
+        #!/bin/bash
+        kubectl apply -f https://raw.githubusercontent.com/kube-vip/kube-vip/main/docs/manifests/rbac.yaml
+        VIP="192.168.1.100"
+        INTERFACE="eth0"
+        KVVERSION="v0.6.2"
+        TOKEN=
+        
+        cat > /var/tmp/kube-vip.yaml << 'EOT'
+        apiVersion: apps/v1
+        kind: DaemonSet
+        metadata:
+          name: kube-vip-ds
+          namespace: kube-system
+        spec:
+          selector:
+            matchLabels:
+              name: kube-vip-ds
+          template:
+            metadata:
+              labels:
+                name: kube-vip-ds
+            spec:
+              containers:
+              - args:
+                - manager
+                env:
+                - name: vip_arp
+                  value: "true"
+                - name: vip_interface
+                  value: 
+                - name: vip_leaderelection
+                  value: "true"
+                - name: vip_address
+                  value: 
+                - name: vip_leaseduration
+                  value: "15"
+                - name: vip_renewdeadline
+                  value: "10"
+                - name: vip_retryperiod
+                  value: "2"
+                - name: enable_loadbalancer
+                  value: "true"
+                image: ghcr.io/kube-vip/kube-vip:
+                name: kube-vip
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+                    - SYS_TIME
+              hostNetwork: true
+              serviceAccountName: kube-vip
+              tolerations:
+              - effect: NoSchedule
+                key: node-role.kubernetes.io/master
+                operator: Exists
+              - effect: NoSchedule
+                key: node-role.kubernetes.io/control-plane
+                operator: Exists
+        EOT
+        
+        # Apply kube-vip daemonset
+        kubectl apply -f /var/tmp/kube-vip.yaml
+      mode: 0700
+      path: /usr/local/bin/init-kube-vip.sh
+  init:
+    systemd:
+      units:
+        - name: kubevip-init.service
+          enabled: true
+          contents: |
+            [Unit]
+            Description=Initialize kube-vip
+            Wants=network-online.target
+            After=network-online.target
+            ConditionPathExists=!/var/lib/kubevip-initialized
+            
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/init-kube-vip.sh
+            ExecStartPost=/usr/bin/touch /var/lib/kubevip-initialized
+            RemainAfterExit=yes
+            
+            [Install]
+            WantedBy=multi-user.target

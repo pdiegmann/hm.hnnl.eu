@@ -1,0 +1,28 @@
+machine:
+  network:
+    hostname: {{ .hostname }}
+    interfaces:
+      - interface: eth0
+        dhcp: true
+  install:
+    disk: /dev/sda
+  sysctls:
+    net.ipv4.ip_forward: "1"
+  time:
+    disabled: false
+    servers:
+      - time.cloudflare.com
+  kubelet:
+    extraArgs:
+      rotate-server-certificates: true
+      node-ip: {{ .nodeIP }}
+    nodeIP:
+      validSubnets:
+        - 192.168.1.0/24
+cluster:
+  network:
+    cni:
+      name: cilium
+  proxy:
+    disabled: false
+  allowSchedulingOnControlPlanes: true
