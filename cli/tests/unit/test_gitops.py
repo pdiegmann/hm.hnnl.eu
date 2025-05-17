@@ -104,14 +104,14 @@ class TestGitOpsManager:
                     
                     assert result is True
     
-    def test_sync_success(self, mock_repo_path, mock_flux):
+    def test_sync_success(self, mock_repo_path, mock_run_command): # Changed fixture
         """Test successful Flux sync."""
         with patch('hm_cli.gitops.ConfigManager'):
             with patch('hm_cli.gitops.get_repo_path', return_value=mock_repo_path):
                 # Mock kubeconfig exists
                 with patch('os.path.exists', return_value=True):
-                    # Mock flux command success
-                    mock_flux.return_value = (0, "Success", "")
+                    # Mock flux command success (now unified)
+                    mock_run_command.return_value = (0, "Success", "")
                     
                     # Create a simple mock implementation
                     manager = GitOpsManager()

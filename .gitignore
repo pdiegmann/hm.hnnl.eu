@@ -1,3 +1,6 @@
+*_debug.txt
+*_debug_*.txt
+
 .DS_Store
 
 # SOPS keys
@@ -44,3 +47,6 @@ cluster/flux/flux-system/gotk-sync.yaml
 *.key
 *.crt
 *.env
+cli/hm_cli/gitops.py
+
+*.egg*

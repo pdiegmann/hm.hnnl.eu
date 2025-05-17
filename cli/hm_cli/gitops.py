@@ -93,34 +93,45 @@ class GitOpsManager:
             True if successful, False otherwise.
         """
         console.print(Panel.fit("Pushing changes to remote repository", title="GitOps Push"))
+        print(f"GITOPS_DEBUG: Entering push method. Remote: {remote}, Branch: {branch}") # DEBUG
         
         if not self.repo:
             console.print(f"[bold red]Error: {self.repo_path} is not a Git repository.[/bold red]")
+            print("GITOPS_DEBUG: No repo found, returning False.") # DEBUG
             return False
         
         # Get remote and branch if not provided
         if not remote:
             remote = self.config.get('git.remote', 'origin')
+            print(f"GITOPS_DEBUG: Remote not provided, using default: {remote}") # DEBUG
         
         if not branch:
             branch = self.repo.active_branch.name
+            print(f"GITOPS_DEBUG: Branch not provided, using active: {branch}") # DEBUG
         
+        print(f"GITOPS_DEBUG: Final remote: {remote}, branch: {branch}") # DEBUG
         try:
             # Check if remote exists
+            print(f"GITOPS_DEBUG: Attempting to get remote '{remote}'") # DEBUG
             try:
-                self.repo.remote(remote)
+                actual_remote_obj = self.repo.remote(remote)
+                print(f"GITOPS_DEBUG: Successfully got remote '{remote}': {actual_remote_obj}") # DEBUG
             except ValueError:
                 console.print(f"[bold red]Error: Remote '{remote}' not found.[/bold red]")
+                print(f"GITOPS_DEBUG: Remote '{remote}' not found (ValueError).") # DEBUG
                 
                 # Ask if user wants to add the remote
                 add_remote = questionary.confirm(f"Do you want to add remote '{remote}'?").ask()
                 if add_remote:
                     remote_url = questionary.text("Remote URL:").ask()
                     self.repo.create_remote(remote, url=remote_url)
+                    print(f"GITOPS_DEBUG: Created remote '{remote}' with URL '{remote_url}'.") # DEBUG
                 else:
+                    print(f"GITOPS_DEBUG: User declined to add remote, returning False.") # DEBUG
                     return False
             
             # Push changes
+            print(f"GITOPS_DEBUG: Attempting to push to remote '{remote}', branch '{branch}'.") # DEBUG
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -128,20 +139,37 @@ class GitOpsManager:
             ) as progress:
                 task = progress.add_task(f"Pushing to {remote}/{branch}...", total=None)
                 
-                push_info = self.repo.remote(remote).push(branch)
+                push_info_list = self.repo.remote(remote).push(branch) # Renamed to avoid conflict with git.PushInfo
+                print(f"GITOPS_DEBUG: Push command executed. Result: {push_info_list}") # DEBUG
                 
                 progress.update(task, completed=True)
             
             # Check push results
-            for info in push_info:
-                if info.flags & info.ERROR:
-                    console.print(f"[bold red]Error pushing to {remote}/{branch}: {info.summary}[/bold red]")
+            print(f"GITOPS_DEBUG: Checking push results: {push_info_list}") # DEBUG
+            for info_item in push_info_list: # Renamed loop variable
+                print(f"GITOPS_DEBUG: Processing push_info_item: flags={info_item.flags}, summary='{info_item.summary}'") # DEBUG
+                # Assuming info.ERROR is an attribute like git.PushInfo.ERROR
+                # We need to ensure 'info' here refers to the class git.PushInfo if that's where ERROR is defined
+                # For now, let's assume info_item.ERROR would be the way if info_item was a PushInfo object
+                # The mock provides a MagicMock as info_item, so info_item.ERROR would be another MagicMock
+                # The original code uses 'info.flags & info.ERROR'. This implies info.ERROR is a flag bitmask.
+                # Let's try to access git.PushInfo.ERROR directly if available.
+                error_flag_value = getattr(git.PushInfo, 'ERROR', 128) # Default to 128 if not found
+                print(f"GITOPS_DEBUG: Using error_flag_value: {error_flag_value}") # DEBUG
+
+                if info_item.flags & error_flag_value:
+                    console.print(f"[bold red]Error pushing to {remote}/{branch}: {info_item.summary}[/bold red]")
+                    print(f"GITOPS_DEBUG: Push error detected by flags, returning False. Flags: {info_item.flags}, Summary: {info_item.summary}") # DEBUG
                     return False
             
             console.print(f"[green]Changes pushed to {remote}/{branch} successfully.[/green]")
+            print("GITOPS_DEBUG: Push successful, returning True.") # DEBUG
             return True
         except Exception as e:
             console.print(f"[bold red]Error pushing changes: {e}[/bold red]")
+            print(f"GITOPS_DEBUG: Exception during push: {e}, returning False.") # DEBUG
+            import traceback # DEBUG
+            print(traceback.format_exc()) # DEBUG
             return False
     
     def sync(self) -> bool:

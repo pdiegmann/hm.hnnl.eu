@@ -21,7 +21,7 @@ class TestClusterManager:
                 assert manager.repo_path == mock_repo_path
                 assert manager.config == mock_config_manager
     
-    def test_create_success(self, mock_repo_path, mock_talosctl, mock_flux):
+    def test_create_success(self, mock_repo_path, mock_run_command): # Changed fixtures
         """Test successful cluster creation."""
         with patch('hm_cli.cluster.ConfigManager'):
             with patch('hm_cli.cluster.get_repo_path', return_value=mock_repo_path):
@@ -39,9 +39,8 @@ class TestClusterManager:
                         ]
                         mock_confirm.return_value.ask.return_value = True
                         
-                        # Mock successful command executions
-                        mock_talosctl.return_value = (0, "Success", "")
-                        mock_flux.return_value = (0, "Success", "")
+                        # Mock successful command executions (now unified)
+                        mock_run_command.return_value = (0, "Success", "")
                         
                         # Mock file operations
                         with patch('os.makedirs'):
@@ -55,7 +54,7 @@ class TestClusterManager:
                         
                         assert result is True
     
-    def test_upgrade_success(self, mock_repo_path, mock_talosctl, mock_kubectl):
+    def test_upgrade_success(self, mock_repo_path, mock_run_command): # Changed fixtures
         """Test successful cluster upgrade."""
         with patch('hm_cli.cluster.ConfigManager'):
             with patch('hm_cli.cluster.get_repo_path', return_value=mock_repo_path):
@@ -82,9 +81,8 @@ class TestClusterManager:
                                     {'name': 'talos-cp3', 'ip': '192.168.1.103', 'type': 'controlplane', 'hardware': 'mac-mini'}
                                 ]
                             }):
-                                # Mock successful command executions
-                                mock_talosctl.return_value = (0, "Success", "")
-                                mock_kubectl.return_value = (0, "Success", "")
+                                # Mock successful command executions (now unified)
+                                mock_run_command.return_value = (0, "Success", "")
                                 
                                 # Create a simple mock implementation
                                 manager = ClusterManager()
@@ -94,7 +92,7 @@ class TestClusterManager:
                         
                         assert result is True
     
-    def test_delete_success(self, mock_repo_path, mock_talosctl):
+    def test_delete_success(self, mock_repo_path, mock_run_command): # Changed fixture
         """Test successful cluster deletion."""
         with patch('hm_cli.cluster.ConfigManager'):
             with patch('hm_cli.cluster.get_repo_path', return_value=mock_repo_path):
@@ -116,8 +114,8 @@ class TestClusterManager:
                                 {'name': 'talos-cp3', 'ip': '192.168.1.103', 'type': 'controlplane', 'hardware': 'mac-mini'}
                             ]
                         }):
-                            # Mock successful command executions
-                            mock_talosctl.return_value = (0, "Success", "")
+                            # Mock successful command executions (now unified)
+                            mock_run_command.return_value = (0, "Success", "")
                             
                             # Mock os.remove for kubeconfig cleanup
                             with patch('os.remove'):
@@ -129,14 +127,14 @@ class TestClusterManager:
                     
                     assert result is True
     
-    def test_status_success(self, mock_repo_path, mock_kubectl):
+    def test_status_success(self, mock_repo_path, mock_run_command): # Changed fixture
         """Test successful cluster status."""
         with patch('hm_cli.cluster.ConfigManager'):
             with patch('hm_cli.cluster.get_repo_path', return_value=mock_repo_path):
                 # Mock kubeconfig exists
                 with patch('os.path.exists', return_value=True):
-                    # Mock successful command executions
-                    mock_kubectl.return_value = (0, "Success", "")
+                    # Mock successful command executions (now unified)
+                    mock_run_command.return_value = (0, "Success", "")
                     
                     # Create a simple mock implementation
                     manager = ClusterManager()

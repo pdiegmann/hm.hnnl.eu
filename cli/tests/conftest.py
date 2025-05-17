@@ -9,6 +9,7 @@ import shutil
 import yaml
 import pytest
 from unittest.mock import MagicMock, patch
+from hm_cli.core import run_command as actual_run_command_for_spec # Added import
 
 # Add the hm_cli package to the path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -19,7 +20,7 @@ import rich.progress
 original_progress = rich.progress.Progress
 rich.progress.Progress = MagicMock()
 
-from hm_cli.core import ConfigManager
+from hm_cli.core import ConfigManager, run_command as actual_run_command
 
 
 @pytest.fixture
@@ -88,69 +89,65 @@ def mock_config_manager(mock_config_file):
 
 
 @pytest.fixture
-def mock_talosctl():
-    """Mock talosctl command execution."""
-    with patch('hm_cli.core.run_command') as mock_run:
-        def side_effect(cmd, cwd=None):
-            if "talosctl apply-config" in cmd:
-                return 0, "Applied configuration successfully", ""
-            elif "talosctl bootstrap" in cmd:
-                return 0, "Bootstrapped successfully", ""
-            elif "talosctl health" in cmd:
-                return 0, "Cluster is healthy", ""
-            elif "talosctl kubeconfig" in cmd:
-                # Create a dummy kubeconfig file
-                if cwd:
-                    with open(os.path.join(cwd, "kubeconfig"), 'w') as f:
-                        f.write("apiVersion: v1\nkind: Config\n")
-                return 0, "Kubeconfig retrieved", ""
-            elif "talosctl get nodes" in cmd:
-                return 0, "node1:\n  metadata:\n    hostname: talos-cp1\n  spec:\n    addresses:\n      - address: 192.168.1.101", ""
-            elif "talosctl reset" in cmd:
-                return 0, "Node reset successfully", ""
-            else:
-                return 1, "", f"Unknown talosctl command: {cmd}"
+def mock_run_command(monkeypatch):
+    """Unified mock for hm_cli.core.run_command, dispatching to tool-specific logic."""
+    print("CONFTEST_DEBUG: mock_run_command fixture is being set up.")
+    
+    # Define a path for a temporary debug file
+    # tempfile.gettempdir()
+    side_effect_debug_file = os.path.join(".", "hm_cli_side_effect_debug.txt")
+    # Clear the file at the start of each test that uses this fixture
+    if os.path.exists(side_effect_debug_file):
+        os.remove(side_effect_debug_file)
+
+    def simple_side_effect(*args, **kwargs):
+        # --- BEGIN FILE WRITE DEBUG ---
+        with open(side_effect_debug_file, "a") as f:
+            f.write(f"SIDE_EFFECT_EXECUTED: args={args}, kwargs={kwargs}\n")
+        # --- END FILE WRITE DEBUG ---
         
-        mock_run.side_effect = side_effect
-        yield mock_run
+        print(f"MINIMAL_SIDE_EFFECT CALLED (SHOULD BE REDUNDANT IF FILE WRITE WORKS): args={args}, kwargs={kwargs}") # Keep for now
 
+        if args and "gen-config.sh" in args[0]:
+            call_cwd = kwargs.get('cwd')
+            if call_cwd:
+                repo_root = None
+                if "bootstrap" in call_cwd and "talos" in call_cwd:
+                    path_parts = call_cwd.split(os.path.sep)
+                    try:
+                        talos_index = path_parts.index("talos")
+                        bootstrap_index = path_parts.index("bootstrap")
+                        if talos_index > 0 and bootstrap_index == talos_index - 1:
+                            repo_root = os.path.sep.join(path_parts[:bootstrap_index])
+                    except ValueError:
+                        pass
 
-@pytest.fixture
-def mock_kubectl():
-    """Mock kubectl command execution."""
-    with patch('hm_cli.core.run_command') as mock_run:
-        def side_effect(cmd, cwd=None):
-            if "kubectl get nodes" in cmd:
-                return 0, "NAME       STATUS   ROLES                  AGE   VERSION\ntalos-cp1   Ready    control-plane,master   1d    v1.28.6", ""
-            elif "kubectl get pods" in cmd:
-                return 0, "NAMESPACE     NAME                                      READY   STATUS    RESTARTS   AGE\nkube-system   kube-apiserver-talos-cp1                    1/1     Running   0          1d", ""
-            elif "kubectl apply" in cmd:
-                return 0, "resource created", ""
-            else:
-                return 1, "", f"Unknown kubectl command: {cmd}"
+                if repo_root:
+                    talos_config_dir = os.path.join(repo_root, "infrastructure", "talos", "controlplane")
+                    try:
+                        os.makedirs(talos_config_dir, exist_ok=True)
+                        node_names = ["talos-cp1", "talos-cp2", "talos-cp3"]
+                        for node_name in node_names:
+                            config_file_path = os.path.join(talos_config_dir, f"{node_name}.yaml")
+                            with open(config_file_path, 'w') as f:
+                                f.write(f"dummy_talos_config_for: {node_name}\nversion: vMinimalMock\n")
+                            # print(f"MINIMAL_SIDE_EFFECT created dummy file: {config_file_path}") # Less critical now
+                    except OSError as e:
+                        with open(side_effect_debug_file, "a") as f: # Log errors to file too
+                            f.write(f"SIDE_EFFECT_ERROR creating dummy files: {e}\n")
+        return 0, "minimal_mocked_stdout", "minimal_mocked_stderr"
+
+    mock = MagicMock(side_effect=simple_side_effect)
+    
+    monkeypatch.setattr('hm_cli.core.run_command', mock)
+    monkeypatch.setattr('hm_cli.cluster.run_command', mock)
+    # Also patch for gitops if it uses run_command directly from core or its own import
+    monkeypatch.setattr('hm_cli.gitops.run_command', mock, raising=False) # Add raising=False in case gitops doesn't have it
+
+    print(f"CONFTEST_DEBUG: mock_run_command.side_effect is: {mock.side_effect}")
+    print(f"CONFTEST_DEBUG: Side effect debug file will be at: {side_effect_debug_file}")
         
-        mock_run.side_effect = side_effect
-        yield mock_run
-
-
-@pytest.fixture
-def mock_flux():
-    """Mock flux command execution."""
-    with patch('hm_cli.core.run_command') as mock_run:
-        def side_effect(cmd, cwd=None):
-            if "flux --version" in cmd:
-                return 0, "flux version 2.0.0", ""
-            elif "flux bootstrap" in cmd:
-                return 0, "Flux bootstrapped successfully", ""
-            elif "flux reconcile" in cmd:
-                return 0, "Reconciliation triggered", ""
-            elif "flux get" in cmd:
-                return 0, "NAME          READY   MESSAGE                       REVISION        SUSPENDED\nflux-system   True    Applied revision: main/1234567   main/1234567   False", ""
-            else:
-                return 1, "", f"Unknown flux command: {cmd}"
-        
-        mock_run.side_effect = side_effect
-        yield mock_run
+    return mock
 
 
 @pytest.fixture
@@ -160,7 +157,15 @@ def mock_git_repo():
     mock_repo.is_dirty.return_value = True
     mock_repo.git.add.return_value = None
     mock_repo.git.commit.return_value = None
-    mock_repo.git.config.return_value = "test-user"
+    
+    # Mock git.config to return values for both user.name and user.email
+    def git_config_side_effect(config_key):
+        if config_key == 'user.name':
+            return "test-user"
+        if config_key == 'user.email':
+            return "test@example.com"
+        return "" # Default for other keys
+    mock_repo.git.config.side_effect = git_config_side_effect
     
     mock_remote = MagicMock()
     mock_remote.push.return_value = [MagicMock(flags=0, summary="Push successful")]
@@ -180,3 +185,4 @@ def cli_runner():
     """Create a Click CLI test runner."""
     from click.testing import CliRunner
     return CliRunner()
+

@@ -6,13 +6,15 @@ import os
 import sys
 import pytest
 import yaml
-from unittest.mock import patch, mock_open
+import logging # Added for caplog
+from unittest.mock import patch, mock_open, ANY # Added ANY for Popen call check
+import subprocess # Added for subprocess.PIPE
 
 from hm_cli.core import (
-    ConfigManager, 
-    ensure_repo_exists, 
-    run_command, 
-    validate_ip_address, 
+    ConfigManager,
+    ensure_repo_exists,
+    run_command,
+    validate_ip_address,
     get_repo_path
 )
 
@@ -91,7 +93,7 @@ def test_run_command_success():
     """Test run_command with a successful command."""
     with patch('subprocess.Popen') as mock_popen:
         mock_process = mock_popen.return_value
-        mock_process.communicate.return_value = (b"stdout", b"stderr")
+        mock_process.communicate.return_value = ("stdout", "stderr") # Return strings
         mock_process.returncode = 0
         
         returncode, stdout, stderr = run_command("echo hello")
@@ -99,14 +101,22 @@ def test_run_command_success():
         assert returncode == 0
         assert stdout == "stdout"
         assert stderr == "stderr"
-        mock_popen.assert_called_once()
+        mock_popen.assert_called_once_with(
+            "echo hello",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+            cwd=None,
+            env=ANY, # Check that env is passed (will be os.environ.copy() by default)
+            text=True
+        )
 
 
 def test_run_command_error():
     """Test run_command with a failing command."""
     with patch('subprocess.Popen') as mock_popen:
         mock_process = mock_popen.return_value
-        mock_process.communicate.return_value = (b"", b"error")
+        mock_process.communicate.return_value = ("", "error") # Return strings
         mock_process.returncode = 1
         
         returncode, stdout, stderr = run_command("invalid_command")
@@ -114,7 +124,15 @@ def test_run_command_error():
         assert returncode == 1
         assert stdout == ""
         assert stderr == "error"
-        mock_popen.assert_called_once()
+        mock_popen.assert_called_once_with(
+            "invalid_command",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+            cwd=None,
+            env=ANY,
+            text=True
+        )
 
 
 def test_run_command_exception():
@@ -122,9 +140,73 @@ def test_run_command_exception():
     with patch('subprocess.Popen', side_effect=Exception("Test exception")):
         returncode, stdout, stderr = run_command("command")
         
-        assert returncode == 1
+        assert returncode == -1 # Updated expected return code
         assert stdout == ""
         assert "Test exception" in stderr
+
+
+def test_run_command_filenotfound():
+    """Test run_command when FileNotFoundError occurs."""
+    with patch('subprocess.Popen', side_effect=FileNotFoundError("File not found")):
+        returncode, stdout, stderr = run_command("nonexistent_command")
+        assert returncode == -1
+        assert stdout == ""
+        assert "Command not found: nonexistent_command" in stderr
+
+
+def test_run_command_with_env():
+    """Test run_command with custom environment variables."""
+    custom_env = {"CUSTOM_VAR": "value"}
+    # Create a copy of current environment and update it, as run_command does
+    expected_env = os.environ.copy()
+    expected_env.update(custom_env)
+
+    with patch('subprocess.Popen') as mock_popen:
+        mock_process = mock_popen.return_value
+        mock_process.communicate.return_value = ("stdout", "stderr") # Return strings
+        mock_process.returncode = 0
+
+        run_command("echo hello", env=custom_env)
+
+        mock_popen.assert_called_once_with(
+            "echo hello",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+            cwd=None,
+            env=expected_env, # Check that the merged env is passed
+            text=True
+        )
+
+def test_run_command_suppress_output(caplog):
+    """Test run_command with suppress_output=True and False."""
+    with patch('subprocess.Popen') as mock_popen:
+        mock_process = mock_popen.return_value
+        mock_process.communicate.return_value = ("some output", "some error")
+        mock_process.returncode = 0
+
+        # Test with suppress_output=True
+        with caplog.at_level(logging.DEBUG):
+            run_command("echo test_suppressed", suppress_output=True)
+        
+        suppressed_logs = [rec for rec in caplog.records if "echo test_suppressed" in rec.message and rec.funcName == 'run_command']
+        assert not suppressed_logs, "Log messages found when suppress_output was True"
+        caplog.clear()
+
+        # Test with suppress_output=False (default behavior)
+        with caplog.at_level(logging.DEBUG):
+            run_command("echo test_not_suppressed", suppress_output=False)
+
+        not_suppressed_stdout_logs = [
+            rec for rec in caplog.records
+            if "echo test_not_suppressed" in rec.message and "STDOUT: some output" in rec.message and rec.funcName == 'run_command'
+        ]
+        not_suppressed_stderr_logs = [
+            rec for rec in caplog.records
+            if "echo test_not_suppressed" in rec.message and "STDERR: some error" in rec.message and rec.funcName == 'run_command'
+        ]
+        assert not_suppressed_stdout_logs, "STDOUT log not found when suppress_output was False"
+        assert not_suppressed_stderr_logs, "STDERR log not found when suppress_output was False"
 
 
 def test_validate_ip_address_valid():

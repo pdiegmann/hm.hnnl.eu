@@ -80,7 +80,7 @@ class TestServiceCommandsIntegration:
                             # Mock file writing
                             with patch('builtins.open', mock_open()):
                                 # Mock GitOpsManager
-                                with patch('hm_cli.service.GitOpsManager') as mock_gitops:
+                                with patch('hm_cli.gitops.GitOpsManager') as mock_gitops:  # Corrected patch target
                                     mock_gitops_instance = mock_gitops.return_value
                                     mock_gitops_instance.commit.return_value = True
                                     
@@ -143,7 +143,7 @@ class TestServiceCommandsIntegration:
                                     # Mock successful removal
                                     with patch('shutil.rmtree'):
                                         # Mock GitOpsManager
-                                        with patch('hm_cli.service.GitOpsManager') as mock_gitops:
+                                        with patch('hm_cli.gitops.GitOpsManager') as mock_gitops:  # Corrected patch target
                                             mock_gitops_instance = mock_gitops.return_value
                                             mock_gitops_instance.commit.return_value = True
                                             

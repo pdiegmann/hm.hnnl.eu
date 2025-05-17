@@ -118,8 +118,25 @@ class TestGitOpsCommandsIntegration:
         """Test the gitops push workflow when remote is not found."""
         with patch('hm_cli.gitops.get_repo_path', return_value=mock_repo_path):
             with patch('git.Repo', return_value=mock_git_repo):
-                # Mock remote not found
-                mock_git_repo.remote.side_effect = ValueError("Remote not found")
+                # Mock remote not found initially, then allow it after creation
+                # Mock remote interactions
+                # This mock will be the return value of repo.remote()
+                mock_upstream_remote_after_creation = MagicMock()
+                mock_upstream_remote_after_creation.push.return_value = [MagicMock(flags=0, summary="Push successful")]
+
+                def remote_side_effect(name):
+                    if name == 'upstream':
+                        if not mock_git_repo.create_remote.called:
+                            raise ValueError("Remote not found")
+                        else:
+                            # After create_remote is called for 'upstream', return the specifically prepared mock
+                            return mock_upstream_remote_after_creation
+                    # For other remotes (e.g., 'origin' if used by default push)
+                    default_mock_remote = MagicMock()
+                    default_mock_remote.push.return_value = [MagicMock(flags=0, summary="Push successful")]
+                    return default_mock_remote
+
+                mock_git_repo.remote.side_effect = remote_side_effect
                 
                 # Mock questionary for adding remote
                 with patch('questionary.confirm') as mock_confirm:
@@ -128,14 +145,8 @@ class TestGitOpsCommandsIntegration:
                         mock_confirm.return_value.ask.return_value = True
                         mock_text.return_value.ask.return_value = "https://github.com/user/repo.git"
                         
-                        # Mock create_remote
+                        # Mock create_remote to do nothing but allow tracking
                         mock_git_repo.create_remote.return_value = MagicMock()
-                        
-                        # Mock successful push after creating remote
-                        push_info = MagicMock()
-                        push_info.flags = 0
-                        push_info.summary = "Push successful"
-                        mock_git_repo.remote().push.return_value = [push_info]
                         
                         # Run the command
                         result = cli_runner.invoke(cli, ['gitops', 'push', '--remote', 'upstream'])
@@ -145,7 +156,7 @@ class TestGitOpsCommandsIntegration:
                         # Verify create_remote was called
                         mock_git_repo.create_remote.assert_called_once_with('upstream', url='https://github.com/user/repo.git')
     
-    def test_gitops_sync_workflow(self, cli_runner, mock_repo_path, mock_flux):
+    def test_gitops_sync_workflow(self, cli_runner, mock_repo_path, mock_run_command): # Changed fixture
         """Test the gitops sync workflow."""
         with patch('hm_cli.gitops.get_repo_path', return_value=mock_repo_path):
             # Mock kubeconfig exists
@@ -156,19 +167,19 @@ class TestGitOpsCommandsIntegration:
                 assert result.exit_code == 0
                 
                 # Verify flux was called to check version
-                mock_flux.assert_any_call(
+                mock_run_command.assert_any_call( # Changed mock name
                     "flux --version",
                     cwd=mock_repo_path
                 )
                 
                 # Verify flux was called to reconcile
-                mock_flux.assert_any_call(
+                mock_run_command.assert_any_call( # Changed mock name
                     "flux reconcile source git flux-system",
                     cwd=mock_repo_path
                 )
                 
                 # Verify flux was called to get status
-                mock_flux.assert_any_call(
+                mock_run_command.assert_any_call( # Changed mock name
                     "flux get kustomizations --watch",
                     cwd=mock_repo_path
                 )
@@ -197,7 +208,7 @@ class TestGitOpsCommandsIntegration:
                     
                     assert result.exit_code == 1
     
-    def test_end_to_end_gitops_workflow(self, cli_runner, mock_repo_path, mock_git_repo, mock_flux):
+    def test_end_to_end_gitops_workflow(self, cli_runner, mock_repo_path, mock_git_repo, mock_run_command): # Changed fixture
         """Test an end-to-end GitOps workflow: commit, push, sync."""
         with patch('hm_cli.gitops.get_repo_path', return_value=mock_repo_path):
             with patch('git.Repo', return_value=mock_git_repo):
@@ -235,7 +246,7 @@ class TestGitOpsCommandsIntegration:
                     assert sync_result.exit_code == 0
                     
                     # Verify flux was called to reconcile
-                    mock_flux.assert_any_call(
+                    mock_run_command.assert_any_call( # Changed mock name
                         "flux reconcile source git flux-system",
                         cwd=mock_repo_path
                     )

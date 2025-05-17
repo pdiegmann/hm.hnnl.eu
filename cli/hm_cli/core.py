@@ -7,7 +7,7 @@ import os
 import sys
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple # Added Tuple
 
 import yaml
 from rich.console import Console
@@ -140,31 +140,51 @@ def ensure_repo_exists(repo_path: str) -> bool:
     return os.path.exists(os.path.join(repo_path, '.git'))
 
 
-def run_command(cmd: str, cwd: Optional[str] = None) -> tuple:
+def run_command(command: str, cwd: Optional[str] = None, env: Optional[Dict[str, str]] = None, suppress_output: bool = False) -> Tuple[int, str, str]:
     """Run a shell command and return the result.
     
     Args:
-        cmd: Command to run.
+        command: Command to run.
         cwd: Working directory for the command.
+        env: Environment variables for the command.
+        suppress_output: If True, suppress stdout/stderr from being printed by this function's logger.
         
     Returns:
         Tuple of (return_code, stdout, stderr).
     """
     import subprocess
     
+    effective_env = os.environ.copy()
+    if env:
+        effective_env.update(env)
+        
     try:
         process = subprocess.Popen(
-            cmd,
+            command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=True,
-            cwd=cwd
+            cwd=cwd,
+            env=effective_env,
+            text=True  # Use text=True for automatic decoding
         )
         stdout, stderr = process.communicate()
-        return process.returncode, stdout.decode(), stderr.decode()
+        
+        if not suppress_output:
+            if stdout:
+                logger.debug(f"Command '{command}' STDOUT: {stdout.strip()}")
+            if stderr:
+                logger.debug(f"Command '{command}' STDERR: {stderr.strip()}")
+
+        return process.returncode, stdout.strip(), stderr.strip()
+    except FileNotFoundError:
+        if not suppress_output:
+            logger.error(f"Command not found: {command.split()[0]}")
+        return -1, "", f"Command not found: {command.split()[0]}"
     except Exception as e:
-        logger.error(f"Error running command: {e}")
-        return 1, "", str(e)
+        if not suppress_output:
+            logger.error(f"Error running command {command}: {e}")
+        return -1, "", str(e)
 
 
 def validate_ip_address(ip: str) -> bool:
