@@ -1,47 +1,60 @@
 #!/bin/bash
-# Script to generate TSIG key for BIND9 and external-dns integration
+
+# This script generates a TSIG key for BIND9/ExternalDNS integration
+# Run this script from the root of the repository
 
 set -e
 
-# Generate TSIG key
-TSIG_KEY=$(head -c 32 /dev/urandom | base64)
-CURRENT_DIR=$(pwd)
-HOMELAB_ROOT=$(git rev-parse --show-toplevel || echo "$CURRENT_DIR")
+# Color codes for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-if [ -z "$HOMELAB_ROOT" ]; then
-  echo "Error: Could not determine homelab root directory."
-  exit 1
+echo -e "${BLUE}Generating TSIG key for BIND9/ExternalDNS integration...${NC}"
+
+# Check if dnssec-keygen is installed
+if ! command -v dnssec-keygen &> /dev/null; then
+    echo -e "${RED}dnssec-keygen could not be found. Installing bind9utils...${NC}"
+    sudo apt-get update
+    sudo apt-get install -y bind9utils
 fi
 
-# Create SOPS secret for the TSIG key
-cat > "$HOMELAB_ROOT/cluster/core/bind9/tsig-key-secret.yaml" << EOF
+# Create temporary directory
+TEMP_DIR=$(mktemp -d)
+cd $TEMP_DIR
+
+# Generate the key
+KEY_NAME="externaldns-key"
+echo -e "${BLUE}Generating key: ${KEY_NAME}${NC}"
+dnssec-keygen -a HMAC-SHA256 -b 256 -n HOST -r /dev/urandom $KEY_NAME
+
+# Extract the key
+KEY_FILE=$(ls K${KEY_NAME}*.key)
+KEY_VALUE=$(grep -v '^;' $KEY_FILE | cut -d ' ' -f 7)
+
+echo -e "${GREEN}TSIG key generated successfully!${NC}"
+
+# Create the Kubernetes secret
+mkdir -p ../../cluster/core/bind9
+cat > ../../cluster/core/bind9/tsig-key-secret.yaml << EOF
 apiVersion: v1
 kind: Secret
 metadata:
-  name: bind9-tsig-key
+  name: external-dns-tsig-key
   namespace: dns
+type: Opaque
 stringData:
-  tsig-key: "$TSIG_KEY"
+  externaldns-key: "${KEY_VALUE}"
 EOF
 
-# Update BIND9 ConfigMap to include TSIG key configuration
-BIND_CONF="$HOMELAB_ROOT/cluster/core/bind9/configmap.yaml"
+echo -e "${YELLOW}Secret created at: cluster/core/bind9/tsig-key-secret.yaml${NC}"
+echo -e "${YELLOW}Remember to encrypt this file with SOPS:${NC}"
+echo -e "${BLUE}sops --encrypt --in-place cluster/core/bind9/tsig-key-secret.yaml${NC}"
 
-# Backup original ConfigMap
-cp "$BIND_CONF" "$BIND_CONF.bak"
+# Cleanup
+cd - > /dev/null
+rm -rf $TEMP_DIR
 
-# Add TSIG key configuration to named.conf
-sed -i '' '/listen-on-v6 { any; };/a\\n      // TSIG key for external-dns\n      key "externaldns-key" {\n        algorithm hmac-sha256;\n        secret "'$TSIG_KEY'";\n      };\n' "$BIND_CONF"
-
-# Add zone update configuration for external-dns
-sed -i '' '/allow-update { none; };/d' "$BIND_CONF"
-sed -i '' '/type master;/a\\n      allow-update { key "externaldns-key"; };' "$BIND_CONF"
-
-echo "TSIG key generated and configuration updated."
-echo "Secret created at: $HOMELAB_ROOT/cluster/core/bind9/tsig-key-secret.yaml"
-echo "Please encrypt this file with SOPS before committing."
-
-# Add the new secret to the kustomization.yaml
-sed -i '' '/configmap.yaml/a\\n  - tsig-key-secret.yaml' "$HOMELAB_ROOT/cluster/core/bind9/kustomization.yaml"
-
-echo "Kustomization file updated to include the TSIG key secret."
+echo -e "${GREEN}TSIG key generation complete!${NC}"

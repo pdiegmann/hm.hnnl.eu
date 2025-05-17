@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hm-cli"
+version = "0.1.0"
+description = "CLI tool for managing homelab Kubernetes clusters"
+authors = [
+    {name = "Homelab CLI Tool", email = "user@example.com"},
+]
+requires-python = ">=3.8"
+keywords = ["kubernetes", "homelab", "talos", "gitops", "flux"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+]
+dependencies = [
+    "click>=8.0.0",
+    "gitpython>=3.1.0",
+    "pyyaml>=6.0",
+    "rich>=10.0.0",
+    "questionary>=1.10.0",
+    "pydantic>=1.9.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+"hm-cli" = "hm_cli.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+packages = ["hm_cli"]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]
+
+# Configuration for uv to recognize this project as a source
+# This allows `uv pip install -e .` or `uv tool install .`
+[tool.uv.sources]
+"hm-cli" = { path = "." }
